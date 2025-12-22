@@ -3,9 +3,6 @@ import streamlit as st
 import pandas as pd
 import hashlib
 
-def hash_ingredients(text):
-    return hashlib.sha256(text.encode()).hexdigest()
-
 from snowflake.snowpark.functions import col
 import requests
 # Write directly to the app
@@ -35,35 +32,19 @@ if ingredients_list:
     ingredients_string = ''
 
     for fruit_chosen in ingredients_list:
-        ingredients_string += fruit_chosen +','
+        ingredients_string += fruit_chosen +''
 
-        ingredients_hash = hash_ingredients(ingredients_string)
+        search_on=pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
+        #st.write('The search value for ', fruit_chosen,' is ', search_on, '.')
+      
+        st.subheader(fruit_chosen + 'Nutrition Information')
+        smoothiefroot_response = requests.get(f"https://my.smoothiefroot.com/api/fruit/{search_on}")
+        sf_df = st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
+    st.write(ingredients_string)
 
-       
-    st.write("Ingredients:", ingredients_string)
-    st.write("Ingredients Hash:", ingredients_hash)
+    my_insert_stmt = """ insert into smoothies.public.orders(ingredients,name_on_order)
+            values ('""" + ingredients_string + """','"""+name_on_order+"""')"""
 
-    for fruit_chosen in ingredients_list:
-        search_on = pd_df.loc[
-            pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'
-        ].iloc[0]
-
-        st.subheader(fruit_chosen + ' Nutrition Information')
-        smoothiefroot_response = requests.get(
-            f"https://my.smoothiefroot.com/api/fruit/{search_on}"
-        )
-        st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
-
-    my_insert_stmt = f"""
-        INSERT INTO smoothies.public.orders
-        (ingredients, ingredients_hash, name_on_order)
-        VALUES
-        ('{ingredients_string}', '{ingredients_hash}', '{name_on_order}')
-    """
-
-    if st.button('Submit Order'):
-        session.sql(my_insert_stmt).collect()
-        st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
-
-
+    #st.write(my_insert_stmt)
+    #st.stop()
 
